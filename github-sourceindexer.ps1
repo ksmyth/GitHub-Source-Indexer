@@ -20,15 +20,12 @@
   Path to the Debugging Tools for Windows (the srcsrv subfolder) - if not specifed the script tries to find it. 
   If you don't have the Debugging Tools for Windows in PATH variable you need to provide this argument.
 .PARAMETER gitHubUrl
-  Path to the Github server (defaults to "http://github.com") - override for in-house enterprise github installations.
+  Path to the Github server (defaults to "https://raw.githubusercontent.com") - override for in-house enterprise github installations.
 .PARAMETER ignore
   Ignore a source path that contains any of the strings in this array, e.g. -ignore somedir, "some other dir"
 .PARAMETER ignoreUnknown
   By default this script terminates when it encounters source from a path other than the source root.
   Pass this switch to instead ignore all paths other than the source root.
-.PARAMETER serverIsRaw
-  If the server serves raw the /raw directory name should not be concatenated to the source urls.
-  Pass this switch to omit the /raw directory, e.g. -gitHubUrl https://raw.github.com -serverIsRaw
 .PARAMETER verifyLocalRepo
   This switch verifies the local repository from the detected or passed in 'sourcesRoot' by using 
   git to get the filenames from the tree associated with 'branch' (which is either a branch or 
@@ -40,14 +37,19 @@
   this switch implies switch ignoreUnknown.
 
 .EXAMPLE 
-  .\github-sourceindexer.ps1 -symbolsFolder "C:\git\DirectoryContainingPdbFilesToIndex" -userId "GithubUsername" -repository "GithubRepositoryName" -branch "master" -sourcesRoot "c:\git\OriginalCompiledProjectPath" -verbose
+  .\github-sourceindexer.ps1 -verifyLocalRepo -symbolsFolder "C:\git\DirectoryContainingPdbFilesToIndex" -userId "GithubUsername" -repository "GithubRepositoryName" -branch (git rev-parse HEAD) -sourcesRoot "c:\git\OriginalCompiledProjectPath" -verbose
   
+  powershell ..\GitHub-Source-Indexer\github-sourceindexer.ps1 -verifyLocalRepo -symbolsFolder "%CD%" -userId metamorph-inc -repository "meta-core" -branch (git rev-parse HEAD) -sourcesRoot "%CD%" -dbgTools "'c:\Program Files (x86)\Windows Kits\8.1\Debuggers\x86\srcsrv'" -verbose
+  powershell ..\GitHub-Source-Indexer\github-sourceindexer.ps1 -verifyLocalRepo -symbolsFolder "%CD%" -userId ksmyth -repository "UDM" -branch (git rev-parse HEAD) -sourcesRoot "%CD%" -dbgTools "'c:\Program Files (x86)\Windows Kits\8.1\Debuggers\x86\srcsrv'" -verbose
+  "c:\Program Files (x86)\Windows Kits\8.1\Debuggers\x86\srcsrv"\srctool.exe -x -d:tmp externals\desert\DesertDll\Release\desert.pdb
+  "c:\Program Files (x86)\Windows Kits\8.1\Debuggers\x86\srcsrv"\pdbstr -r -s:srcsrv -p:Build\Win32\v140\Release\obj\src\UdmDllv110\UdmDll_3_2_v140_Win32.pdb
+
   Description
   -----------
   This command will index all pdb files located in the C:\git\DirectoryContainingPdbFilesToIndex directory and subdirectories, 
   adding to the source stream a reference to the master branch of the GithubRepositoryName repository for the github user GithubUsername.
   
-  For example source indexes added like http://github.com/GithubUsername/GithubRepositoryName/raw/master/ExampleLibrary/LibraryClass.cs 
+  For example source indexes added like https://raw.githubusercontent.com/GithubUsername/GithubRepositoryName/master/ExampleLibrary/LibraryClass.cs 
   where /ExampleLibrary/LibraryClass.cs is the remainder after removing c:\git\OriginalCompiledProjectPath\ from the beginning of the original compile path. 
 #>
 
@@ -83,9 +85,6 @@ param(
        
        ## Ignore paths other than the source root
        [switch] $ignoreUnknown,
-       
-       ## Server serves raw: don't concatenate /raw in the path
-       [switch] $serverIsRaw,
        
        ## Verify the filenames in the tree in the local repository
        [switch] $verifyLocalRepo
@@ -336,7 +335,8 @@ if ($verifyLocalRepo) {
 }
 
 if ([String]::IsNullOrEmpty($gitHubUrl)) {
-    $gitHubUrl = "http://github.com";
+    $gitHubUrl = "https://raw.githubusercontent.com";
+    $serverIsRaw = $true;
 }
 
 # If the server serves raw then /raw does not need to be concatenated
