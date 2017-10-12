@@ -174,8 +174,12 @@ function FindGitExe {
     if (Test-Path $gitexe) {
         return $gitexe
     }
-    
+
     if( [IntPtr]::size -eq 4 ) {
+        $gitexe = ${env:ProgramW6432} + $suffix
+        if (Test-Path $gitexe) {
+            return $gitexe
+        }
         return $null
     }
     
